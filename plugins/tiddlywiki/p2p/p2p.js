@@ -13,9 +13,8 @@ A p2p sync adaptor module
 "use strict";
 
 if($tw.browser) {
-	let bundle = require("$:/plugins/tiddlywiki/p2p/bundle");
-	exports.adaptorClass = window.PeerToPeerAdaptor;
-	console.log(window);
+	let peertopeeradaptor = require("./peertopeeradaptor");
+	exports.adaptorClass = peertopeeradaptor.PeerToPeerAdaptor;
 }
 
 })();

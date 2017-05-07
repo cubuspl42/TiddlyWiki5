@@ -2,18 +2,10 @@
   "name": "p2p",
   "version": "1.0.0",
   "description": "title: $:/plugins/tiddlywiki/p2p/readme",
-  "main": "p2p-bundle.js",
+  "main": "p2p.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
-  "license": "ISC",
-  "dependencies": {
-    "bluebird": "^3.5.0",
-    "crypto-browserify": "^3.11.0",
-    "ed25519-supercop": "^1.0.2",
-    "supercop.js": "^2.0.1",
-    "underscore": "^1.8.3",
-    "webtorrent": "^0.98.18"
-  }
+  "license": "ISC"
 }
