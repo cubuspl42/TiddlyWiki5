@@ -1,0 +1,14 @@
+{
+	"tiddlers": [
+		{
+			"file": "underscore-min.js",
+			"fields": {
+				"type": "application/javascript",
+				"title": "$:/plugins/tiddlywiki/underscore/underscore.js",
+				"module-type": "library"
+			},
+			"prefix": "",
+			"suffix": ""
+		}
+	]
+}

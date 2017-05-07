@@ -1,0 +1,7 @@
+{
+	"title": "$:/plugins/tiddlywiki/localstorage",
+	"description": "localstorage syncadaptor",
+	"author": "Jakub Trzebiatowski",
+	"core-version": ">=5.0.0",
+	"list": "readme"
+}

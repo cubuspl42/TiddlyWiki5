@@ -1,0 +1,5 @@
+{
+	"title": "$:/plugins/tiddlywiki/underscore",
+	"description": "Wrapper for underscore.js",
+	"core-version": ">=5.0.0"
+}

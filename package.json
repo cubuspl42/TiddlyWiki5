@@ -24,7 +24,13 @@
     "wiki"
   ],
   "dependencies": {},
-  "devDependencies": {},
+  "devDependencies": {
+    "bluebird": "^3.5.0",
+    "crypto": "0.0.3",
+    "ed25519-supercop": "^1.0.2",
+    "underscore": "^1.8.3",
+    "webtorrent": "^0.98.18"
+  },
   "bundleDependencies": [],
   "license": "BSD",
   "engines": {

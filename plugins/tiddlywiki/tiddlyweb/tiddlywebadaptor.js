@@ -155,6 +155,7 @@ TiddlyWebAdaptor.prototype.getSkinnyTiddlers = function(callback) {
 				tiddlers[t] = self.convertTiddlerFromTiddlyWebFormat(tiddlers[t]);
 			}
 			// Invoke the callback with the skinny tiddlers
+			console.log("getSkinnyTiddlers", tiddlers);
 			callback(null,tiddlers);
 		}
 	});
@@ -165,6 +166,7 @@ Save a tiddler and invoke the callback with (err,adaptorInfo,revision)
 */
 TiddlyWebAdaptor.prototype.saveTiddler = function(tiddler,callback) {
 	var self = this;
+	console.log("saveTiddler", tiddler, this.convertTiddlerToTiddlyWebFormat(tiddler));
 	$tw.utils.httpRequest({
 		url: this.host + "recipes/" + encodeURIComponent(this.recipe) + "/tiddlers/" + encodeURIComponent(tiddler.fields.title),
 		type: "PUT",
@@ -198,6 +200,7 @@ TiddlyWebAdaptor.prototype.loadTiddler = function(title,callback) {
 				return callback(err);
 			}
 			// Invoke the callback
+			console.log("loadTiddler", self.convertTiddlerFromTiddlyWebFormat(JSON.parse(data)));
 			callback(null,self.convertTiddlerFromTiddlyWebFormat(JSON.parse(data)));
 		}
 	});

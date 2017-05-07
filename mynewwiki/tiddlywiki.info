@@ -1,8 +1,8 @@
 {
     "description": "Basic client-server edition",
     "plugins": [
-        "tiddlywiki/tiddlyweb",
-        "tiddlywiki/filesystem",
+        "tiddlywiki/async",
+        "tiddlywiki/underscore",
         "tiddlywiki/highlight",
         "tiddlywiki/p2p"
     ],

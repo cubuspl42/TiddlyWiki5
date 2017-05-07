@@ -1,0 +1,14 @@
+{
+	"tiddlers": [
+		{
+			"file": "bundle.js",
+			"fields": {
+				"type": "application/javascript",
+				"title": "$:/plugins/tiddlywiki/p2p/bundle.js",
+				"module-type": "library"
+			},
+			"prefix": "",
+			"suffix": ""
+		}
+	]
+}
