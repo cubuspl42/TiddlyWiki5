@@ -8498,7 +8498,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 <pre>{
     &quot;tiddlers&quot;: {
         &quot;$:/plugins/tiddlywiki/p2p/p2p.js&quot;: {
-            &quot;text&quot;: &quot;/*\\\ntitle: $:/plugins/tiddlywiki/p2p/p2p.js\ntype: application/javascript\nmodule-type: syncadaptor\n\nA p2p sync adaptor module\n\n\\*/\n(function(){\n\n/*jslint node: true, browser: true */\n/*global $tw: false */\n\&quot;use strict\&quot;;\n\nif($tw.browser) {\n\tlet peertopeeradaptor = require(\&quot;./peertopeeradaptor\&quot;);\n\texports.adaptorClass = peertopeeradaptor.PeerToPeerAdaptor;\n}\n\n})();\n&quot;,
+            &quot;text&quot;: &quot;/*\\\ntitle: $:/plugins/tiddlywiki/p2p/p2p.js\ntype: application/javascript\nmodule-type: syncadaptor\n\nA p2p sync adaptor module\n\n\\*/\n(function(){\n\n/*jslint node: true, browser: true */\n/*global $tw: false */\n\&quot;use strict\&quot;;\n\nif($tw.browser) {\n    let require = window._require;\n\tlet peertopeeradaptor = require(\&quot;./peertopeeradaptor\&quot;);\n\texports.adaptorClass = peertopeeradaptor.PeerToPeerAdaptor;\n}\n\n})();\n&quot;,
             &quot;title&quot;: &quot;$:/plugins/tiddlywiki/p2p/p2p.js&quot;,
             &quot;type&quot;: &quot;application/javascript&quot;,
             &quot;module-type&quot;: &quot;syncadaptor&quot;

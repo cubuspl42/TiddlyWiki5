@@ -13,6 +13,7 @@ A p2p sync adaptor module
 "use strict";
 
 if($tw.browser) {
+    let require = window._require;
 	let peertopeeradaptor = require("./peertopeeradaptor");
 	exports.adaptorClass = peertopeeradaptor.PeerToPeerAdaptor;
 }
