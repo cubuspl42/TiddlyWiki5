@@ -5,7 +5,7 @@ var keypair = ed.createKeyPair(seed);
 var publicKey = keypair.publicKey.toString('hex');
 var secretKey = keypair.secretKey.toString('hex');
 
-console.log({
+console.log(JSON.stringify({
 	publicKey: publicKey,
 	secretKey: secretKey
-});
+}));

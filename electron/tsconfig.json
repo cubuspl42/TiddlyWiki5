@@ -1,0 +1,11 @@
+{
+    "files": [
+        "webtorrent-async.ts",
+        "peertopeeradaptor.ts"
+    ],
+    "compilerOptions": {
+        "noImplicitAny": false,
+        "target": "es5",
+        "lib": ["es2017", "dom"]
+    }
+}
