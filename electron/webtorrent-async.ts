@@ -1,7 +1,7 @@
 import * as Promise from "bluebird";
 
 import * as WebTorrent from "webtorrent";
-import { Torrent, TorrentOptions } from "webtorrent";
+import { Torrent, TorrentOptions, TorrentFile } from "webtorrent";
 
 import { Instance as ParseTorrent } from 'parse-torrent';
 import { Instance as SimplePeer } from 'simple-peer';
@@ -23,6 +23,15 @@ export interface WebTorrentAsync extends WebTorrent.Instance {
 
 export interface TorrentAsync extends WebTorrent.Torrent {
     onAsync(event: 'infoHash' | 'metadata' | 'ready' | 'done'): Promise<void>;
+}
+
+export interface TorrentFileAsync extends WebTorrent.TorrentFile {
+    getBufferAsync(): Promise<Buffer>;
+}
+
+export function async(file: TorrentFile): TorrentFileAsync {
+    Promise.promisifyAll(file);
+    return <TorrentFileAsync> file;
 }
 
 function noErrPromisifier(originalMethod) {

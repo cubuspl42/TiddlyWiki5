@@ -2,6 +2,11 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 var Promise = require("bluebird");
 var WebTorrent = require("webtorrent");
+function async(file) {
+    Promise.promisifyAll(file);
+    return file;
+}
+exports.async = async;
 function noErrPromisifier(originalMethod) {
     return function promisified() {
         var args = [].slice.call(arguments); // might want to use smarter

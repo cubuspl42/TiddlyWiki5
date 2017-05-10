@@ -10,7 +10,8 @@ A p2p sync adaptor module
 import * as Promise from "bluebird";
 import { _ } from "underscore";
 import * as WebTorrent from "webtorrent";
-import { WebTorrentAsync, TorrentAsync } from "./webtorrent-async";
+import { Torrent } from "webtorrent";
+import { WebTorrentAsync, TorrentAsync, async } from "./webtorrent-async";
 import { Mutex } from "async-mutex";
 
 import crypto = require("crypto");
@@ -24,10 +25,15 @@ Promise.config({
 	longStackTraces: true
 });
 
-function serializeTiddler(tiddler) {
+function extractFields(tiddler) {
 	let data = _.mapObject(tiddler.fields,
 		(value, key) => tiddler.getFieldString(key));
 	return data;
+}
+
+function saveTiddlerFields(tiddlerFields) {
+	let tiddlerTitle = tiddlerFields.title;
+	localStorage.setItem(tiddlerTitle, JSON.stringify(tiddlerFields));
 }
 
 class LocalStorageAdaptor {
@@ -67,8 +73,7 @@ class LocalStorageAdaptor {
 	Save a tiddler and invoke the callback with (err,adaptorInfo,revision)
 	*/
 	saveTiddler(tiddler, callback) {
-		let tiddlerTitle = tiddler.fields.title;
-		localStorage.setItem(tiddlerTitle, JSON.stringify(serializeTiddler(tiddler)));
+		saveTiddlerFields(extractFields(tiddler));
 		callback(null);
 	};
 
@@ -147,9 +152,24 @@ function putIndexMetadata(dht, data, oldSeq) {
 	});
 }
 
-function extractJson(tiddlerTorrent) {
-	return tiddlerTorrent.files[0].getBufferAsync()
+function extractJson(tiddlerTorrent: Torrent): any {
+	return async(tiddlerTorrent.files[0]).getBufferAsync()
 		.then((tiddlerBuffer) => JSON.parse(tiddlerBuffer.toString('utf-8')));
+}
+
+function fetchTorrent(torrentClient: WebTorrent.Instance, magnetURI: string): Promise<Torrent> {
+	return new Promise<Torrent>((resolve) => {
+		torrentClient.add(magnetURI, (torrent) => {
+			torrent.on('done', () => {
+				resolve(torrent);
+			})
+		});
+	});
+}
+
+function makeMagnetURI(infoHash) {
+	let magnetURI = `magnet:?xt=urn:btih:${infoHash}&dn=index&tr=udp%3A%2F%2Fexplodie.org%3A6969&tr=udp%3A%2F%2Ftracker.coppersurfer.tk%3A6969&tr=udp%3A%2F%2Ftracker.empire-js.us%3A1337&tr=udp%3A%2F%2Ftracker.leechers-paradise.org%3A6969&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.fastcast.nz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com`;
+	return magnetURI;
 }
 
 function fetchIndex(indexInfoHash) {
@@ -157,21 +177,23 @@ function fetchIndex(indexInfoHash) {
 
 	console.log('> fetchIndex', indexInfoHash);
 
-	let magnetURI = `magnet:?xt=urn:btih:${indexInfoHash}&dn=index&tr=udp%3A%2F%2Fexplodie.org%3A6969&tr=udp%3A%2F%2Ftracker.coppersurfer.tk%3A6969&tr=udp%3A%2F%2Ftracker.empire-js.us%3A1337&tr=udp%3A%2F%2Ftracker.leechers-paradise.org%3A6969&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.fastcast.nz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com`;
+	let magnetURI = makeMagnetURI(indexInfoHash);
 
 	console.log('Adding torrent:', magnetURI);
 
 	return Promise
-		.try(() => torrentClient.addAsync(magnetURI))
-		.then((indexTorrent) => {
-			console.log('Torrent ready:', indexTorrent);
-			Promise.promisifyAll(Object.getPrototypeOf(indexTorrent));
-			indexTorrent.on('done', () => {
-				console.log('Torrent done!');
-			});
-			return indexTorrent.onAsync('done')
-				.then(() => extractJson(indexTorrent))
-		})
+		.try(() => fetchTorrent(torrentClient, magnetURI))
+		// .then(() => torrentClient.addAsync(magnetURI))
+		.then((indexTorrent) => extractJson(indexTorrent))
+		// .then((indexTorrent) => {
+			// console.log('Torrent ready:', indexTorrent);
+			// Promise.promisifyAll(Object.getPrototypeOf(indexTorrent));
+			// indexTorrent.on('done', () => {
+				// console.log('Torrent done!');
+			// });
+			// return indexTorrent.onAsync('done')
+				// .then(() => extractJson(indexTorrent))
+		// })
 		.finally(() => torrentClient.destroyAsync())
 		.finally(() => console.log('< fetchIndex'));
 }
@@ -187,29 +209,21 @@ function resetTorrentClient(client) {
 		.map(client.torrents, (torrent) => client.removeAsync(torrent));
 }
 
-function addTiddlerTorrents(newIndex, tiddlersTorrentClient) {
+function fetchTiddlerTorrents(oldIndex, newIndex, tiddlersTorrentClient): Promise<Torrent[]> {
 	let indexDelta = _.pick(newIndex, (tiddlerInfoHash, tiddlerTitle) => {
-		let oldTiddlerInfoHash = this.index[tiddlerTitle];
+		let oldTiddlerInfoHash = oldIndex[tiddlerTitle];
 		return tiddlerInfoHash !== oldTiddlerInfoHash;
 	});
 	let tiddlersInfoHashes = _.values(indexDelta);
-	return Promise.map(tiddlersInfoHashes, (tiddlerInfoHash) =>
-		tiddlersTorrentClient.addAsync(tiddlerInfoHash));
+	return Promise.map(tiddlersInfoHashes, (tiddlerInfoHash) => 
+		fetchTorrent(tiddlersTorrentClient, makeMagnetURI(tiddlerInfoHash)));
 }
 
-
-function extractTiddlers(tiddlerTorrents: TorrentAsync[]) {
+function fetchTiddlers(oldIndex, newIndex, tiddlersTorrentClient, localStorageAdaptor) {
 	return Promise
-		.map(tiddlerTorrents,
-		(tiddlerTorrent) => tiddlerTorrent.onAsync('done'))
-		.then(() => Promise.map(tiddlerTorrents, extractJson));
-}
-
-function fetchTiddlers(newIndex, tiddlersTorrentClient, localStorageAdaptor) {
-	return Promise
-		.try(() => addTiddlerTorrents(newIndex, tiddlersTorrentClient))
-		.then(extractTiddlers)
-		.map((tiddler) => this.localStorageAdaptor.saveTiddlerAsync(tiddler));
+		.try(() => fetchTiddlerTorrents(oldIndex, newIndex, tiddlersTorrentClient))
+		.map((tiddlerTorrent: Torrent) => extractJson(tiddlerTorrent))
+		.map((tiddlerFields: any) => saveTiddlerFields(tiddlerFields));
 }
 
 class PeerToPeerAdaptor {
@@ -303,15 +317,18 @@ class PeerToPeerAdaptor {
 	pull(indexInfoHash): Promise<void> {
 		console.log('> pull');
 
-		let i = fetchIndex(indexInfoHash);
-		let t = i.then((newIndex) =>
-			fetchTiddlers(
-				newIndex,
-				this.tiddlersTorrentClient,
-				this.localStorageAdaptor))
-		let s = i.then(this.seedNewIndex);
 		return Promise
-			.join(t, s, (a, b) => null)
+			.try(() => fetchIndex(indexInfoHash))
+			.then((newIndex) => Promise
+				.try(() => fetchTiddlers(
+					this.index,
+					newIndex,
+					this.tiddlersTorrentClient,
+					this.localStorageAdaptor))
+				.then(() => {
+					this.index = newIndex;
+				}))
+			.then(() => this.seedIndex())
 			.finally(() => console.log('< pull'));
 	}
 
@@ -394,7 +411,7 @@ class PeerToPeerAdaptor {
 	*/
 	saveTiddler(tiddler, callback) {
 		let tiddlerTitle = tiddler.fields.title;
-		let tiddlerFields = serializeTiddler(tiddler);
+		let tiddlerFields = extractFields(tiddler);
 
 		Promise
 			.try(() => console.log("> saveTiddler", tiddlerTitle))
