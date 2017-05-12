@@ -9,13 +9,15 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "bluebird": "^3.5.0",
+    "ed25519-supercop": "^1.0.2",
     "@types/bluebird": "^3.5.3",
     "@types/core-js": "^0.9.41",
     "@types/node": "^7.0.18",
     "@types/webtorrent": "^0.98.4",
     "async-mutex": "^0.1.1",
-    "bluebird": "^3.5.0",
-    "ed25519-supercop": "^1.0.2",
+    "bittorrent-dht": "https://github.com/metamystical/bittorrent-dht/tarball/master",
+    "k-rpc": "https://github.com/cubuspl42/k-rpc/tarball/master",
     "underscore": "^1.8.3",
     "webtorrent": "^0.98.18"
   },
