@@ -8,7 +8,7 @@ A p2p sync adaptor module
 \*/
 
 import * as Bluebird from "bluebird";
-import { _ } from "underscore";
+import * as _ from "underscore";
 import * as WebTorrent from "webtorrent";
 import { Torrent } from "webtorrent";
 import { WebTorrentAsync, TorrentAsync, async } from "./webtorrent-async";
@@ -152,9 +152,9 @@ async function putIndexMetadata(dht, data, cas: number, seq) {
 	});
 }
 
-function extractJson(tiddlerTorrent: Torrent): any {
-	return async(tiddlerTorrent.files[0]).getBufferAsync()
-		.then((tiddlerBuffer) => JSON.parse(tiddlerBuffer.toString('utf-8')));
+async function extractJson(tiddlerTorrent: Torrent): Promise<any> {
+	let tiddlerBuffer = await async(tiddlerTorrent.files[0]).getBufferAsync();
+	return JSON.parse(tiddlerBuffer.toString('utf-8'));
 }
 
 function fetchTorrent(torrentClient: WebTorrent.Instance, magnetURI: string): Bluebird<Torrent> {
@@ -209,6 +209,15 @@ function resetTorrentClient(client) {
 		.map(client.torrents, (torrent) => client.removeAsync(torrent));
 }
 
+function findDifferentTiddlers(oldIndex, newIndex): string[] {
+	let indexDelta = _.pick(newIndex, (tiddlerInfoHash, tiddlerTitle) => {
+		let oldTiddlerInfoHash = oldIndex[tiddlerTitle];
+		return tiddlerInfoHash !== oldTiddlerInfoHash;
+	});
+	let tiddlersInfoHashes = _.values(indexDelta);
+	return tiddlersInfoHashes;
+}
+
 function fetchTiddlerTorrents(oldIndex, newIndex, tiddlersTorrentClient): Bluebird<Torrent[]> {
 	let indexDelta = _.pick(newIndex, (tiddlerInfoHash, tiddlerTitle) => {
 		let oldTiddlerInfoHash = oldIndex[tiddlerTitle];
@@ -229,6 +238,16 @@ function fetchTiddlers(oldIndex, newIndex, tiddlersTorrentClient, localStorageAd
 	//	fetch -> extract -> save -> seed ?
 
 	// Bluebird.join()
+}
+
+async function fetchTiddler(
+	tiddlersTorrentClient, localStorageAdaptor, tiddlerInfoHash
+): Promise<void> {
+	let magnetURI = makeMagnetURI(tiddlerInfoHash);
+	let tiddlerTorrent = await fetchTorrent(tiddlersTorrentClient, magnetURI);
+	let tiddlerFields = await extractJson(tiddlerTorrent);
+	saveTiddlerFields(tiddlerFields);
+	// TODO: seed?
 }
 
 class PeerToPeerAdaptor {
@@ -319,22 +338,22 @@ class PeerToPeerAdaptor {
 				newIndexBuffer, { name: 'index' }));
 	}
 
-	pull(indexInfoHash): Bluebird<void> {
+	async pull(indexInfoHash) {
 		console.log('> pull');
 
-		return Bluebird
-			.try(() => fetchIndex(indexInfoHash))
-			.then((newIndex) => Bluebird
-				.try(() => fetchTiddlers(
-					this.index,
-					newIndex,
+		try {
+			let newIndex = await fetchIndex(indexInfoHash);
+			console.log('newIndex:', newIndex);
+			let differentTiddlers = findDifferentTiddlers(this.index, newIndex);
+			await Bluebird.map(differentTiddlers,
+				(tiddlerInfoHash) => fetchTiddler(
 					this.tiddlersTorrentClient,
-					this.localStorageAdaptor))
-				.then(() => {
-					this.index = newIndex;
-				}))
-			.then(() => this.seedIndex())
-			.finally(() => console.log('< pull'));
+					this.localStorageAdaptor,
+					tiddlerInfoHash));
+			this.index = newIndex;
+		} finally {
+			console.log('< pull');
+		}
 	}
 
 	async pushMetadata(dht) {
@@ -384,7 +403,7 @@ class PeerToPeerAdaptor {
 				});
 
 				await this.pull(resIndexInfoHash);
-				
+
 				this.seq = res.seq;
 
 				// let newIndexTorrent = this.indexTorrentClient.torrents[0];
@@ -475,10 +494,7 @@ class PeerToPeerAdaptor {
 		this.localStorageAdaptor.loadTiddler(title, callback);
 	};
 
-	/*
-	Delete a tiddler and invoke the callback with (err)
-	*/
-	deleteTiddler(title, callback, options) {
+	async deleteTiddlerAsync(title, options): Promise<void> {
 		Bluebird
 			.try(() => {
 				console.log("> deleteTiddler", title);
@@ -500,8 +516,15 @@ class PeerToPeerAdaptor {
 						});
 				}
 			})
-			.finally(() => console.log("< deleteTiddler", title))
-			.asCallback(callback);
+			.finally(() => console.log("< deleteTiddler", title));
+	}
+
+	/*
+	Delete a tiddler and invoke the callback with (err)
+	*/
+	deleteTiddler(title, callback, options) {
+		callback(null);
+		// Bluebird.resolve(this.deleteTiddlerAsync(title, options)).asCallback(callback);
 	};
 
 }
