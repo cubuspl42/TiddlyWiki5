@@ -301,6 +301,7 @@ var PeerToPeerAdaptor = (function () {
         this.tiddlersTorrentClient = webTorrentClient();
         process.setMaxListeners(50);
         this.initIndex();
+        this.trySync();
         console.log('< PeerToPeerAdaptor');
     }
     PeerToPeerAdaptor.prototype.seedTiddler = function (tiddlerFields) {
@@ -464,39 +465,53 @@ var PeerToPeerAdaptor = (function () {
     ;
     PeerToPeerAdaptor.prototype.trySync = function () {
         return __awaiter(this, void 0, void 0, function () {
-            var dhtTorrentClient, dht, e_1;
+            var _this = this;
+            var _loop_1, this_1;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
                         console.info('> trySync');
+                        _loop_1 = function () {
+                            var dhtTorrentClient, dht, e_1;
+                            return __generator(this, function (_a) {
+                                switch (_a.label) {
+                                    case 0:
+                                        dhtTorrentClient = webTorrentClient();
+                                        dht = dhtTorrentClient.dht;
+                                        return [4 /*yield*/, dht.onAsync('ready')];
+                                    case 1:
+                                        _a.sent();
+                                        _a.label = 2;
+                                    case 2:
+                                        _a.trys.push([2, 4, 5, 7]);
+                                        console.log('Trying to sync...');
+                                        return [4 /*yield*/, this_1.mutex.runExclusive(function () { return _this.sync(dht); })];
+                                    case 3:
+                                        _a.sent();
+                                        return [3 /*break*/, 7];
+                                    case 4:
+                                        e_1 = _a.sent();
+                                        console.error("Sync error: " + e_1);
+                                        console.info('Retrying...');
+                                        return [3 /*break*/, 7];
+                                    case 5: return [4 /*yield*/, dhtTorrentClient.destroyAsync()];
+                                    case 6:
+                                        _a.sent();
+                                        console.log('< trySync');
+                                        return [7 /*endfinally*/];
+                                    case 7: return [2 /*return*/];
+                                }
+                            });
+                        };
+                        this_1 = this;
                         _a.label = 1;
                     case 1:
-                        if (!true) return [3 /*break*/, 9];
-                        dhtTorrentClient = webTorrentClient();
-                        dht = dhtTorrentClient.dht;
-                        return [4 /*yield*/, dht.onAsync('ready')];
+                        if (!true) return [3 /*break*/, 3];
+                        return [5 /*yield**/, _loop_1()];
                     case 2:
                         _a.sent();
-                        _a.label = 3;
-                    case 3:
-                        _a.trys.push([3, 5, 6, 8]);
-                        console.log('Trying to sync...');
-                        return [4 /*yield*/, this.sync(dht)];
-                    case 4:
-                        _a.sent();
-                        return [2 /*return*/];
-                    case 5:
-                        e_1 = _a.sent();
-                        console.error("Sync error: " + e_1);
-                        console.info('Retrying...');
-                        return [3 /*break*/, 8];
-                    case 6: return [4 /*yield*/, dhtTorrentClient.destroyAsync()];
-                    case 7:
-                        _a.sent();
-                        console.log('< trySync');
-                        return [7 /*endfinally*/];
-                    case 8: return [3 /*break*/, 1];
-                    case 9: return [2 /*return*/];
+                        return [3 /*break*/, 1];
+                    case 3: return [2 /*return*/];
                 }
             });
         });
@@ -519,59 +534,47 @@ var PeerToPeerAdaptor = (function () {
         var _this = this;
         return Bluebird.resolve(this.mutex.runExclusive(function () { return Bluebird
             .try(function () { return console.log('> getSkinnyTiddlers', _this.isReady()); })
-            .then(function () { return _this.trySync(); })
             .then(function () { return _this.localStorageAdaptor.getSkinnyTiddlersAsync(); })
             .finally(function () { return console.log('< getSkinnyTiddlers'); }); })).asCallback(callback);
     };
     ;
     PeerToPeerAdaptor.prototype.saveTiddlerAsync = function (tiddler) {
         return __awaiter(this, void 0, void 0, function () {
-            var dhtTorrentClient, dht, tiddlerTitle, tiddlerFields, oldTiddlerFields, tiddlerTorrent;
+            var tiddlerTitle, tiddlerFields, oldTiddlerFields, tiddlerTorrent;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
-                        dhtTorrentClient = webTorrentClient();
-                        dht = dhtTorrentClient.dht;
                         tiddlerTitle = tiddler.fields.title;
                         tiddlerFields = extractFields(tiddler);
                         if (!(tiddlerTitle[0] == '$' || tiddlerTitle.startsWith('Draft'))) return [3 /*break*/, 1];
-                        return [3 /*break*/, 13];
+                        return [3 /*break*/, 9];
                     case 1:
-                        _a.trys.push([1, , 11, 13]);
+                        _a.trys.push([1, , 8, 9]);
                         console.log("> saveTiddler", tiddlerTitle);
-                        return [4 /*yield*/, dht.onAsync('ready')];
-                    case 2:
-                        _a.sent();
-                        return [4 /*yield*/, this.sync(dht)];
-                    case 3:
-                        _a.sent();
                         return [4 /*yield*/, this.localStorageAdaptor.loadTiddlerAsync(tiddlerTitle)];
-                    case 4:
+                    case 2:
                         oldTiddlerFields = _a.sent();
-                        if (!_.isEqual(oldTiddlerFields, tiddlerFields)) return [3 /*break*/, 5];
+                        if (!_.isEqual(oldTiddlerFields, tiddlerFields)) return [3 /*break*/, 3];
                         console.log('Tiddler did not change');
                         return [2 /*return*/];
-                    case 5: return [4 /*yield*/, this.localStorageAdaptor.saveTiddlerAsync(tiddler)];
-                    case 6:
+                    case 3: return [4 /*yield*/, this.localStorageAdaptor.saveTiddlerAsync(tiddler)];
+                    case 4:
                         _a.sent();
                         return [4 /*yield*/, this.seedTiddler(tiddlerFields)];
-                    case 7:
+                    case 5:
                         tiddlerTorrent = _a.sent();
                         this.index[tiddlerTitle] = tiddlerTorrent.infoHash;
                         return [4 /*yield*/, this.seedIndex()];
+                    case 6:
+                        _a.sent();
+                        ++this.seq;
+                        _a.label = 7;
+                    case 7: return [3 /*break*/, 9];
                     case 8:
-                        _a.sent();
-                        return [4 /*yield*/, this.pushMetadata(dht, this.seq + 1)];
-                    case 9:
-                        _a.sent();
-                        _a.label = 10;
-                    case 10: return [3 /*break*/, 13];
-                    case 11: return [4 /*yield*/, dhtTorrentClient.destroyAsync()];
-                    case 12:
-                        _a.sent();
+                        // await dhtTorrentClient.destroyAsync();
                         console.log("< saveTiddler", tiddlerTitle);
                         return [7 /*endfinally*/];
-                    case 13: return [2 /*return*/];
+                    case 9: return [2 /*return*/];
                 }
             });
         });
@@ -580,7 +583,10 @@ var PeerToPeerAdaptor = (function () {
     Save a tiddler and invoke the callback with (err,adaptorInfo,revision)
     */
     PeerToPeerAdaptor.prototype.saveTiddler = function (tiddler, callback) {
-        Bluebird.resolve(this.saveTiddlerAsync(tiddler)).asCallback(callback);
+        var _this = this;
+        Bluebird
+            .resolve(this.mutex.runExclusive(function () { return _this.saveTiddlerAsync(tiddler); }))
+            .asCallback(callback);
     };
     ;
     /*

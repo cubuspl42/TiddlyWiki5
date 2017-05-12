@@ -267,6 +267,7 @@ class PeerToPeerAdaptor {
 		this.tiddlersTorrentClient = webTorrentClient();
 		process.setMaxListeners(50);
 		this.initIndex();
+		this.trySync();
 		console.log('< PeerToPeerAdaptor');
 
 	}
@@ -421,8 +422,8 @@ class PeerToPeerAdaptor {
 			await dht.onAsync('ready');
 			try {
 				console.log('Trying to sync...');
-				await this.sync(dht);
-				return;
+				await this.mutex.runExclusive(() => this.sync(dht));
+				// return;
 			} catch (e) {
 				console.error(`Sync error: ${e}`);
 				console.info('Retrying...');
@@ -451,15 +452,15 @@ class PeerToPeerAdaptor {
 
 		return Bluebird.resolve(this.mutex.runExclusive(() => Bluebird
 			.try(() => console.log('> getSkinnyTiddlers', this.isReady()))
-			.then(() => this.trySync())
+			// .then(() => this.trySync())
 			.then(() => this.localStorageAdaptor.getSkinnyTiddlersAsync())
 			.finally(() => console.log('< getSkinnyTiddlers'))
 		)).asCallback(callback);
 	};
 
 	async saveTiddlerAsync(tiddler) {
-		let dhtTorrentClient = webTorrentClient();
-		let dht = dhtTorrentClient.dht;
+		// let dhtTorrentClient = webTorrentClient();
+		// let dht = dhtTorrentClient.dht;
 
 		let tiddlerTitle: string = tiddler.fields.title;
 		let tiddlerFields = extractFields(tiddler);
@@ -470,8 +471,8 @@ class PeerToPeerAdaptor {
 			try {
 				console.log("> saveTiddler", tiddlerTitle);
 
-				await dht.onAsync('ready');
-				await this.sync(dht);
+				// await dht.onAsync('ready');
+				// await this.sync(dht);
 				let oldTiddlerFields =
 					await this.localStorageAdaptor.loadTiddlerAsync(tiddlerTitle);
 				if (_.isEqual(oldTiddlerFields, tiddlerFields)) {
@@ -479,17 +480,16 @@ class PeerToPeerAdaptor {
 					return;
 				} else {
 					await this.localStorageAdaptor.saveTiddlerAsync(tiddler);
-
 					let tiddlerTorrent = await this.seedTiddler(tiddlerFields);
 					this.index[tiddlerTitle] = tiddlerTorrent.infoHash;
-
 					await this.seedIndex();
+					++this.seq;
 
-					await this.pushMetadata(dht, this.seq + 1);
+					// await this.pushMetadata(dht, this.seq + 1);
 
 				}
 			} finally {
-				await dhtTorrentClient.destroyAsync();
+				// await dhtTorrentClient.destroyAsync();
 				console.log("< saveTiddler", tiddlerTitle);
 			}
 		}
@@ -499,7 +499,9 @@ class PeerToPeerAdaptor {
 	Save a tiddler and invoke the callback with (err,adaptorInfo,revision)
 	*/
 	saveTiddler(tiddler, callback) {
-		Bluebird.resolve(this.saveTiddlerAsync(tiddler)).asCallback(callback);
+		Bluebird
+		.resolve(this.mutex.runExclusive(() => this.saveTiddlerAsync(tiddler)))
+		.asCallback(callback);
 	};
 
 	/*
