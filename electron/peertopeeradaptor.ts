@@ -124,7 +124,7 @@ function loadAllTiddlers() {
 }
 
 function getIndexMetadata(dht) {
-	console.log('Getting DHT ready...');
+	console.log('Bootstraping DHT...');
 	return Bluebird
 		.try(() => dht.getAsync(targetId))
 		.then((res) => {
@@ -142,7 +142,7 @@ async function putIndexMetadata(dht, data, cas: number, seq) {
 		cas: cas,
 		seq: seq
 	});
-	return dht.putAsync({
+	await dht.putAsync({
 		k: publicKeyBuf,
 		v: data,
 		// cas: cas < 0 ? undefined : cas,
@@ -153,10 +153,10 @@ async function putIndexMetadata(dht, data, cas: number, seq) {
 	});
 }
 
-async function extractJson(tiddlerTorrent: Torrent): Promise<any> {
+async function extractJson(torrent: Torrent): Promise<any> {
 	console.log('Extracting JSON...');
-	let tiddlerBuffer = await async(tiddlerTorrent.files[0]).getBufferAsync();
-	return JSON.parse(tiddlerBuffer.toString('utf-8'));
+	let buffer = await async(torrent.files[0]).getBufferAsync();
+	return JSON.parse(buffer.toString('utf-8'));
 }
 
 async function fetchTorrent(torrentClient: WebTorrent.Instance, magnetURI: string): Promise<Torrent> {
@@ -212,28 +212,6 @@ function findDifferentTiddlers(oldIndex, newIndex): string[] {
 	return tiddlersInfoHashes;
 }
 
-function fetchTiddlerTorrents(oldIndex, newIndex, tiddlersTorrentClient): Bluebird<Torrent[]> {
-	let indexDelta = _.pick(newIndex, (tiddlerInfoHash, tiddlerTitle) => {
-		let oldTiddlerInfoHash = oldIndex[tiddlerTitle];
-		return tiddlerInfoHash !== oldTiddlerInfoHash;
-	});
-	let tiddlersInfoHashes = _.values(indexDelta);
-	return Bluebird.map(tiddlersInfoHashes, (tiddlerInfoHash) =>
-		fetchTorrent(tiddlersTorrentClient, makeMagnetURI(tiddlerInfoHash)));
-}
-
-function fetchTiddlers(oldIndex, newIndex, tiddlersTorrentClient, localStorageAdaptor) {
-	return Bluebird
-		.try(() => fetchTiddlerTorrents(oldIndex, newIndex, tiddlersTorrentClient))
-		.map((tiddlerTorrent: Torrent) => extractJson(tiddlerTorrent))
-		.map((tiddlerFields: any) => saveTiddlerFields(tiddlerFields));
-
-	// findDifferentTiddlers.map
-	//	fetch -> extract -> save -> seed ?
-
-	// Bluebird.join()
-}
-
 async function fetchTiddler(
 	tiddlersTorrentClient, localStorageAdaptor, tiddlerInfoHash
 ): Promise<void> {
@@ -267,7 +245,7 @@ class PeerToPeerAdaptor {
 		this.tiddlersTorrentClient = webTorrentClient();
 		process.setMaxListeners(50);
 		this.initIndex();
-		this.trySync();
+		this.syncThread();
 		console.log('< PeerToPeerAdaptor');
 
 	}
@@ -290,7 +268,7 @@ class PeerToPeerAdaptor {
 	initIndex() {
 		console.log("> initIndex");
 
-		let tiddlers = loadAllTiddlers(); // {title: tiddler}
+		let tiddlers = loadAllTiddlers();
 
 		return this.mutex.runExclusive(() => Bluebird
 			.map(_.values(tiddlers), (tiddlerFields) => this.seedTiddler(tiddlerFields))
@@ -369,8 +347,6 @@ class PeerToPeerAdaptor {
 
 	async sync(dht) {
 		console.log('> sync');
-		// let dhtTorrentClient = webTorrentClient();
-		// let dht = this.dhtTorrentClient.dht;
 		let indexTorrent = this.indexTorrentClient.torrents[0];
 		let indexInfoHash = indexTorrent.infoHash;
 
@@ -381,16 +357,14 @@ class PeerToPeerAdaptor {
 			await this.pushMetadata(dht, this.seq);
 		} else {
 			let resIndexInfoHash = res.v.indexInfoHash.toString('hex');
-			console.log(resIndexInfoHash, indexInfoHash);
-			// if (resIndexInfoHash == indexInfoHash) {
-			// this.seq = res.seq;
-			// }
+			if (resIndexInfoHash == indexInfoHash) {
+				this.seq = res.seq;
+			}
 			if (res.seq < this.seq) {
 				console.log('Remote index is out of date', {
 					remoteSeq: res.seq,
 					localSeq: this.seq
 				});
-				// throw new Error('Remote index is out of date');
 				await this.pushMetadata(dht, this.seq);
 			} else if (res.seq > this.seq) {
 				console.log('Local index is out of date', {
@@ -401,11 +375,6 @@ class PeerToPeerAdaptor {
 				await this.pull(resIndexInfoHash);
 
 				this.seq = res.seq;
-
-				// let newIndexTorrent = this.indexTorrentClient.torrents[0];
-				// let newIndexInfoHash = newIndexTorrent.infoHash;
-
-				// await this.pushMetadata(dht);
 			} else {
 				console.log('Index is up to date');
 			}
@@ -414,8 +383,7 @@ class PeerToPeerAdaptor {
 		console.log('< sync');
 	};
 
-	async trySync() {
-		console.info('> trySync');
+	async syncThread() {
 		while (true) {
 			let dhtTorrentClient = webTorrentClient();
 			let dht = dhtTorrentClient.dht;
@@ -423,20 +391,17 @@ class PeerToPeerAdaptor {
 			try {
 				console.log('Trying to sync...');
 				await this.mutex.runExclusive(() => this.sync(dht));
-				// return;
 			} catch (e) {
 				console.error(`Sync error: ${e}`);
 				console.info('Retrying...');
 			} finally {
 				await dhtTorrentClient.destroyAsync();
-				console.log('< trySync');
 			}
 		}
 	}
 
 	isReady() {
-		// console.log('>< isReady', this.index !== undefined);
-		return this.index !== undefined;
+		return true;
 	};
 
 	getTiddlerInfo(tiddler) {
@@ -447,21 +412,14 @@ class PeerToPeerAdaptor {
 	Get an array of skinny tiddler fields from the server
 	*/
 	getSkinnyTiddlers(callback) {
-		// let dhtTorrentClient = webTorrentClient();
-		// let dht = this.dhtTorrentClient.dht;
-
 		return Bluebird.resolve(this.mutex.runExclusive(() => Bluebird
 			.try(() => console.log('> getSkinnyTiddlers', this.isReady()))
-			// .then(() => this.trySync())
 			.then(() => this.localStorageAdaptor.getSkinnyTiddlersAsync())
 			.finally(() => console.log('< getSkinnyTiddlers'))
 		)).asCallback(callback);
 	};
 
 	async saveTiddlerAsync(tiddler) {
-		// let dhtTorrentClient = webTorrentClient();
-		// let dht = dhtTorrentClient.dht;
-
 		let tiddlerTitle: string = tiddler.fields.title;
 		let tiddlerFields = extractFields(tiddler);
 
@@ -470,9 +428,6 @@ class PeerToPeerAdaptor {
 		} else {
 			try {
 				console.log("> saveTiddler", tiddlerTitle);
-
-				// await dht.onAsync('ready');
-				// await this.sync(dht);
 				let oldTiddlerFields =
 					await this.localStorageAdaptor.loadTiddlerAsync(tiddlerTitle);
 				if (_.isEqual(oldTiddlerFields, tiddlerFields)) {
@@ -484,12 +439,8 @@ class PeerToPeerAdaptor {
 					this.index[tiddlerTitle] = tiddlerTorrent.infoHash;
 					await this.seedIndex();
 					++this.seq;
-
-					// await this.pushMetadata(dht, this.seq + 1);
-
 				}
 			} finally {
-				// await dhtTorrentClient.destroyAsync();
 				console.log("< saveTiddler", tiddlerTitle);
 			}
 		}
@@ -500,8 +451,8 @@ class PeerToPeerAdaptor {
 	*/
 	saveTiddler(tiddler, callback) {
 		Bluebird
-		.resolve(this.mutex.runExclusive(() => this.saveTiddlerAsync(tiddler)))
-		.asCallback(callback);
+			.resolve(this.mutex.runExclusive(() => this.saveTiddlerAsync(tiddler)))
+			.asCallback(callback);
 	};
 
 	/*
@@ -515,22 +466,13 @@ class PeerToPeerAdaptor {
 		Bluebird
 			.try(() => {
 				console.log("> deleteTiddler", title);
-
 				let tiddlerInfoHash = this.index[title];
 				if (tiddlerInfoHash !== undefined) {
 					console.log(tiddlerInfoHash);
 					return this.tiddlersTorrentClient.removeAsync(tiddlerInfoHash)
 						.then(() => delete this.index[title])
 						.then(() => this.seedIndex())
-						.then(() => this.pushMetadata(null, null)) // FIXME
-						.then(() => Bluebird.fromCallback(
-							(callback) => this.localStorageAdaptor.deleteTiddler(title, callback, options)
-						))
-						.catch((e) => {
-							console.log(e);
-							// console.log(this.tiddlersTorrentClient.)
-							console.log(this.index);
-						});
+						.then(() => this.localStorageAdaptor.deleteTiddlerAsync(title))
 				}
 			})
 			.finally(() => console.log("< deleteTiddler", title));
@@ -540,8 +482,9 @@ class PeerToPeerAdaptor {
 	Delete a tiddler and invoke the callback with (err)
 	*/
 	deleteTiddler(title, callback, options) {
-		callback(null);
-		// Bluebird.resolve(this.deleteTiddlerAsync(title, options)).asCallback(callback);
+		Bluebird
+			.resolve(this.mutex.runExclusive(() => this.deleteTiddlerAsync(title, options)))
+			.asCallback(callback);
 	};
 
 }
