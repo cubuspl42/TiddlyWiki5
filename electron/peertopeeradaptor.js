@@ -158,7 +158,6 @@ function putIndexMetadata(dht, data, cas, seq) {
                     return [4 /*yield*/, dht.putAsync({
                             k: publicKeyBuf,
                             v: data,
-                            // cas: cas < 0 ? undefined : cas,
                             seq: seq,
                             sign: function (buf) {
                                 return ed.sign(buf, publicKeyBuf, privateKeyBuf);
@@ -176,9 +175,7 @@ function extractJson(torrent) {
         var buffer;
         return __generator(this, function (_a) {
             switch (_a.label) {
-                case 0:
-                    console.log('Extracting JSON...');
-                    return [4 /*yield*/, webtorrent_async_1.async(torrent.files[0]).getBufferAsync()];
+                case 0: return [4 /*yield*/, webtorrent_async_1.async(torrent.files[0]).getBufferAsync()];
                 case 1:
                     buffer = _a.sent();
                     return [2 /*return*/, JSON.parse(buffer.toString('utf-8'))];
@@ -191,9 +188,7 @@ function fetchTorrent(torrentClient, magnetURI) {
         return __generator(this, function (_a) {
             return [2 /*return*/, new Bluebird(function (resolve) {
                     torrentClient.add(magnetURI, function (torrent) {
-                        console.log('Torrent ready:', torrent.files);
                         torrent.on('done', function () {
-                            console.log('Torrent done');
                             resolve(torrent);
                         });
                     });
@@ -224,9 +219,7 @@ function fetchIndex(indexInfoHash) {
                 case 3:
                     index = _a.sent();
                     return [2 /*return*/, index];
-                case 4:
-                    console.log('Destroying torrent client...');
-                    return [4 /*yield*/, torrentClient.destroyAsync()];
+                case 4: return [4 /*yield*/, torrentClient.destroyAsync()];
                 case 5:
                     _a.sent();
                     console.log('< fetchIndex');
@@ -278,18 +271,11 @@ var PeerToPeerAdaptor = (function () {
         this.mutex = new async_mutex_1.Mutex();
         this.index = undefined;
         this.name = "p2p";
-        console.log('> PeerToPeerAdaptor');
-        this.ready = false;
-        this.wiki = options.wiki;
-        this.logger = new $tw.utils.Logger("PeerToPeer");
         this.localStorageAdaptor = new LocalStorageAdaptor(options);
-        this.dhtTorrentClient = webTorrentClient();
         this.indexTorrentClient = webTorrentClient();
         this.tiddlersTorrentClient = webTorrentClient();
-        process.setMaxListeners(50);
         this.initIndex();
         this.syncThread();
-        console.log('< PeerToPeerAdaptor');
     }
     PeerToPeerAdaptor.prototype.seedTiddler = function (tiddlerFields) {
         console.log('Seeding tiddler:', tiddlerFields);

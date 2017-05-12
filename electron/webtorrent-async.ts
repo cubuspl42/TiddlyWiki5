@@ -31,18 +31,18 @@ export interface TorrentFileAsync extends WebTorrent.TorrentFile {
 
 export function async(file: TorrentFile): TorrentFileAsync {
     Promise.promisifyAll(file);
-    return <TorrentFileAsync> file;
+    return <TorrentFileAsync>file;
 }
 
 function noErrPromisifier(originalMethod) {
-	return function promisified() {
-		var args = [].slice.call(arguments); // might want to use smarter
-		var self = this                      // promisification if performance critical
-		return new Promise(function(resolve,reject) {
-			args.push(resolve); 
-			originalMethod.apply(self,args); // call with arguments
-		});
-	};
+    return function promisified() {
+        var args = [].slice.call(arguments);
+        var self = this
+        return new Promise(function (resolve, reject) {
+            args.push(resolve);
+            originalMethod.apply(self, args);
+        });
+    };
 }
 
 Promise.promisifyAll(WebTorrent.prototype);

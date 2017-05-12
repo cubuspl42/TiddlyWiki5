@@ -9,11 +9,11 @@ function async(file) {
 exports.async = async;
 function noErrPromisifier(originalMethod) {
     return function promisified() {
-        var args = [].slice.call(arguments); // might want to use smarter
-        var self = this; // promisification if performance critical
+        var args = [].slice.call(arguments);
+        var self = this;
         return new Promise(function (resolve, reject) {
             args.push(resolve);
-            originalMethod.apply(self, args); // call with arguments
+            originalMethod.apply(self, args);
         });
     };
 }

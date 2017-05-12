@@ -137,7 +137,7 @@ function getIndexMetadata(dht) {
 		});
 }
 
-async function putIndexMetadata(dht, data, cas: number, seq) {
+async function putIndexMetadata(dht, data, cas, seq) {
 	console.log('Putting data into DHT...', {
 		cas: cas,
 		seq: seq
@@ -145,7 +145,6 @@ async function putIndexMetadata(dht, data, cas: number, seq) {
 	await dht.putAsync({
 		k: publicKeyBuf,
 		v: data,
-		// cas: cas < 0 ? undefined : cas,
 		seq: seq,
 		sign: function (buf) {
 			return ed.sign(buf, publicKeyBuf, privateKeyBuf)
@@ -154,7 +153,6 @@ async function putIndexMetadata(dht, data, cas: number, seq) {
 }
 
 async function extractJson(torrent: Torrent): Promise<any> {
-	console.log('Extracting JSON...');
 	let buffer = await async(torrent.files[0]).getBufferAsync();
 	return JSON.parse(buffer.toString('utf-8'));
 }
@@ -162,9 +160,7 @@ async function extractJson(torrent: Torrent): Promise<any> {
 async function fetchTorrent(torrentClient: WebTorrent.Instance, magnetURI: string): Promise<Torrent> {
 	return new Bluebird<Torrent>((resolve) => {
 		torrentClient.add(magnetURI, (torrent) => {
-			console.log('Torrent ready:', torrent.files);
 			torrent.on('done', () => {
-				console.log('Torrent done');
 				resolve(torrent);
 			})
 		});
@@ -186,7 +182,6 @@ async function fetchIndex(indexInfoHash): Promise<any> {
 		let index = await extractJson(indexTorrent);
 		return index;
 	} finally {
-		console.log('Destroying torrent client...');
 		await torrentClient.destroyAsync();
 		console.log('< fetchIndex');
 	}
@@ -219,11 +214,9 @@ async function fetchTiddler(
 	let tiddlerTorrent = await fetchTorrent(tiddlersTorrentClient, magnetURI);
 	let tiddlerFields = await extractJson(tiddlerTorrent);
 	saveTiddlerFields(tiddlerFields);
-	// TODO: seed?
 }
 
 class PeerToPeerAdaptor {
-	ready: Boolean;
 	wiki: any;
 	logger: any;
 	localStorageAdaptor: LocalStorageAdaptor;
@@ -235,19 +228,11 @@ class PeerToPeerAdaptor {
 	index = undefined;
 
 	constructor(options: any) {
-		console.log('> PeerToPeerAdaptor');
-		this.ready = false;
-		this.wiki = options.wiki;
-		this.logger = new $tw.utils.Logger("PeerToPeer");
 		this.localStorageAdaptor = new LocalStorageAdaptor(options);
-		this.dhtTorrentClient = webTorrentClient();
 		this.indexTorrentClient = webTorrentClient();
 		this.tiddlersTorrentClient = webTorrentClient();
-		process.setMaxListeners(50);
 		this.initIndex();
 		this.syncThread();
-		console.log('< PeerToPeerAdaptor');
-
 	}
 
 	name = "p2p";
@@ -299,7 +284,6 @@ class PeerToPeerAdaptor {
 				console.log('Magnet URI:')
 				console.log(torrent.magnetURI);
 			})
-			// .then(() => this.push())
 			.finally(() => console.log("< seedIndex"));
 	};
 
