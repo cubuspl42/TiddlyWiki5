@@ -375,20 +375,22 @@ class PeerToPeerAdaptor {
 					remoteSeq: res.seq,
 					localSeq: this.seq
 				});
-				throw new Error('Remote index is out of date');
+				// throw new Error('Remote index is out of date');
+				await this.pushMetadata(dht);
 			} else if (res.seq > this.seq) {
 				console.log('Local index is out of date', {
 					remoteSeq: res.seq,
 					localSeq: this.seq
 				});
-				this.seq = res.seq;
 
 				await this.pull(resIndexInfoHash);
+				
+				this.seq = res.seq;
 
-				let newIndexTorrent = this.indexTorrentClient.torrents[0];
-				let newIndexInfoHash = newIndexTorrent.infoHash;
+				// let newIndexTorrent = this.indexTorrentClient.torrents[0];
+				// let newIndexInfoHash = newIndexTorrent.infoHash;
 
-				await this.pushMetadata(dht);
+				// await this.pushMetadata(dht);
 			} else {
 				console.log('Index is up to date');
 			}

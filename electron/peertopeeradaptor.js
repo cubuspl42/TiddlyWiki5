@@ -329,7 +329,7 @@ var PeerToPeerAdaptor = (function () {
     };
     PeerToPeerAdaptor.prototype.sync = function (dht) {
         return __awaiter(this, void 0, void 0, function () {
-            var indexTorrent, indexInfoHash, res, resIndexInfoHash, newIndexTorrent, newIndexInfoHash;
+            var indexTorrent, indexInfoHash, res, resIndexInfoHash;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
@@ -348,27 +348,27 @@ var PeerToPeerAdaptor = (function () {
                     case 3:
                         resIndexInfoHash = res.v.indexInfoHash.toString('hex');
                         console.log(resIndexInfoHash, indexInfoHash);
-                        if (!(res.seq < this.seq)) return [3 /*break*/, 4];
+                        if (!(res.seq < this.seq)) return [3 /*break*/, 5];
                         console.log('Remote index is out of date', {
                             remoteSeq: res.seq,
                             localSeq: this.seq
                         });
-                        throw new Error('Remote index is out of date');
+                        // throw new Error('Remote index is out of date');
+                        return [4 /*yield*/, this.pushMetadata(dht)];
                     case 4:
+                        // throw new Error('Remote index is out of date');
+                        _a.sent();
+                        return [3 /*break*/, 8];
+                    case 5:
                         if (!(res.seq > this.seq)) return [3 /*break*/, 7];
                         console.log('Local index is out of date', {
                             remoteSeq: res.seq,
                             localSeq: this.seq
                         });
-                        this.seq = res.seq;
                         return [4 /*yield*/, this.pull(resIndexInfoHash)];
-                    case 5:
-                        _a.sent();
-                        newIndexTorrent = this.indexTorrentClient.torrents[0];
-                        newIndexInfoHash = newIndexTorrent.infoHash;
-                        return [4 /*yield*/, this.pushMetadata(dht)];
                     case 6:
                         _a.sent();
+                        this.seq = res.seq;
                         return [3 /*break*/, 8];
                     case 7:
                         console.log('Index is up to date');
