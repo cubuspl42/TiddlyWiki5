@@ -7,6 +7,10 @@ const BrowserWindow = electron.BrowserWindow
 const path = require('path')
 const url = require('url')
 
+if(process.env.ELECTRON_USERDATA_SUFFIX) {
+  app.setPath('userData', app.getPath('userData') + process.env.ELECTRON_USERDATA_SUFFIX)
+}
+
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
 let mainWindow
