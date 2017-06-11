@@ -11,6 +11,7 @@ import * as Bluebird from "bluebird";
 import { TimeoutError } from "bluebird";
 import * as _ from "underscore";
 import * as WebTorrent from "webtorrent";
+import * as DHT from "bittorrent-dht";
 import { Torrent } from "webtorrent";
 import { WebTorrentAsync, TorrentAsync, async } from "./webtorrent-async";
 import { Mutex } from "async-mutex";
@@ -124,7 +125,7 @@ function loadAllTiddlers() {
 }
 
 function getIndexMetadata(dht) {
-	console.log('Bootstraping DHT...');
+	// console.log('Bootstraping DHT...');
 	return Bluebird
 		.try(() => dht.getAsync(targetId))
 		.then((res) => {
@@ -145,10 +146,13 @@ async function putIndexMetadata(dht, data, cas, seq) {
 	await dht.putAsync({
 		k: publicKeyBuf,
 		v: data,
+		cas: cas,
 		seq: seq,
 		sign: function (buf) {
 			return ed.sign(buf, publicKeyBuf, privateKeyBuf)
 		}
+	}).catch((e) => {
+		console.warn(e);
 	});
 }
 
@@ -220,7 +224,6 @@ class PeerToPeerAdaptor {
 	wiki: any;
 	logger: any;
 	localStorageAdaptor: LocalStorageAdaptor;
-	dhtTorrentClient: WebTorrentAsync;
 	indexTorrentClient: WebTorrentAsync;
 	tiddlersTorrentClient: WebTorrentAsync;
 	seq = 0;
@@ -314,7 +317,7 @@ class PeerToPeerAdaptor {
 		}
 	}
 
-	async pushMetadata(dht, seqNext) {
+	async pushMetadata(dht, cas, seqNext) {
 		console.log('> push');
 
 		let indexTorrent = this.indexTorrentClient.torrents[0];
@@ -322,9 +325,9 @@ class PeerToPeerAdaptor {
 
 		await putIndexMetadata(dht, {
 			indexInfoHash: new Buffer(indexInfoHash, 'hex')
-		}, this.seq, seqNext);
+		}, cas, seqNext);
 
-		this.seq = seqNext;
+		// this.seq = seqNext;
 
 		console.log('< push');
 	}
@@ -338,7 +341,7 @@ class PeerToPeerAdaptor {
 
 		if (!res) {
 			console.log('DHT entry not found');
-			await this.pushMetadata(dht, this.seq);
+			await this.pushMetadata(dht, undefined, this.seq);
 		} else {
 			let resIndexInfoHash = res.v.indexInfoHash.toString('hex');
 			if (resIndexInfoHash == indexInfoHash) {
@@ -349,7 +352,7 @@ class PeerToPeerAdaptor {
 					remoteSeq: res.seq,
 					localSeq: this.seq
 				});
-				await this.pushMetadata(dht, this.seq);
+				await this.pushMetadata(dht, res.seq, this.seq);
 			} else if (res.seq > this.seq) {
 				console.log('Local index is out of date', {
 					remoteSeq: res.seq,
@@ -369,8 +372,8 @@ class PeerToPeerAdaptor {
 
 	async syncThread() {
 		while (true) {
-			let dhtTorrentClient = webTorrentClient();
-			let dht = dhtTorrentClient.dht;
+			let dht = new DHT({verify: ed.verify});
+			Bluebird.promisifyAll(dht);
 			await dht.onAsync('ready');
 			try {
 				console.log('Trying to sync...');
@@ -379,7 +382,7 @@ class PeerToPeerAdaptor {
 				console.error(`Sync error: ${e}`);
 				console.info('Retrying...');
 			} finally {
-				await dhtTorrentClient.destroyAsync();
+				await dht.destroyAsync();
 			}
 		}
 	}

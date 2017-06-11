@@ -22,7 +22,7 @@ Syncer.prototype.titleSavedNotification = "$:/language/Notifications/Save/Done";
 Syncer.prototype.taskTimerInterval = 1 * 1000; // Interval for sync timer
 Syncer.prototype.throttleInterval = 1 * 1000; // Defer saving tiddlers if they've changed in the last 1s...
 Syncer.prototype.fallbackInterval = 10 * 1000; // Unless the task is older than 10s
-Syncer.prototype.pollTimerInterval = 60 * 1000; // Interval for polling for changes from the adaptor
+Syncer.prototype.pollTimerInterval = 10 * 1000; // Interval for polling for changes from the adaptor
 
 /*
 Instantiate the syncer with the following options:

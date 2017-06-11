@@ -134,7 +134,7 @@ function loadAllTiddlers() {
         .value();
 }
 function getIndexMetadata(dht) {
-    console.log('Bootstraping DHT...');
+    // console.log('Bootstraping DHT...');
     return Bluebird
         .try(function () { return dht.getAsync(targetId); })
         .then(function (res) {
@@ -158,10 +158,13 @@ function putIndexMetadata(dht, data, cas, seq) {
                     return [4 /*yield*/, dht.putAsync({
                             k: publicKeyBuf,
                             v: data,
+                            cas: cas,
                             seq: seq,
                             sign: function (buf) {
                                 return ed.sign(buf, publicKeyBuf, privateKeyBuf);
                             }
+                        }).catch(function (e) {
+                            console.warn(e);
                         })];
                 case 1:
                     _a.sent();
@@ -361,7 +364,7 @@ var PeerToPeerAdaptor = (function () {
             });
         });
     };
-    PeerToPeerAdaptor.prototype.pushMetadata = function (dht, seqNext) {
+    PeerToPeerAdaptor.prototype.pushMetadata = function (dht, cas, seqNext) {
         return __awaiter(this, void 0, void 0, function () {
             var indexTorrent, indexInfoHash;
             return __generator(this, function (_a) {
@@ -372,10 +375,10 @@ var PeerToPeerAdaptor = (function () {
                         indexInfoHash = indexTorrent.infoHash;
                         return [4 /*yield*/, putIndexMetadata(dht, {
                                 indexInfoHash: new Buffer(indexInfoHash, 'hex')
-                            }, this.seq, seqNext)];
+                            }, cas, seqNext)];
                     case 1:
                         _a.sent();
-                        this.seq = seqNext;
+                        // this.seq = seqNext;
                         console.log('< push');
                         return [2 /*return*/];
                 }
@@ -396,7 +399,7 @@ var PeerToPeerAdaptor = (function () {
                         res = _a.sent();
                         if (!!res) return [3 /*break*/, 3];
                         console.log('DHT entry not found');
-                        return [4 /*yield*/, this.pushMetadata(dht, this.seq)];
+                        return [4 /*yield*/, this.pushMetadata(dht, undefined, this.seq)];
                     case 2:
                         _a.sent();
                         return [3 /*break*/, 8];
@@ -410,7 +413,7 @@ var PeerToPeerAdaptor = (function () {
                             remoteSeq: res.seq,
                             localSeq: this.seq
                         });
-                        return [4 /*yield*/, this.pushMetadata(dht, this.seq)];
+                        return [4 /*yield*/, this.pushMetadata(dht, res.seq, this.seq)];
                     case 4:
                         _a.sent();
                         return [3 /*break*/, 8];
@@ -450,6 +453,7 @@ var PeerToPeerAdaptor = (function () {
                                     case 0:
                                         dhtTorrentClient = webTorrentClient();
                                         dht = dhtTorrentClient.dht;
+                                        console.log('Bootstraping DHT...');
                                         return [4 /*yield*/, dht.onAsync('ready')];
                                     case 1:
                                         _a.sent();
